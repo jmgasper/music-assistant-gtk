@@ -1,0 +1,715 @@
+window {
+  background-color: #111318;
+  color: #e6e9ef;
+  font-family: "Noto Sans", "Helvetica Neue", "Helvetica", "Lucida Grande",
+    "Lucida Sans Unicode", "Liberation Sans", "Nimbus Sans", "Segoe UI", "Tahoma",
+    "DejaVu Sans", sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+separator {
+  background-color: #2a303a;
+}
+
+.control-bar {
+  background-color: #1a1f28;
+  background-image: linear-gradient(#212734, #171b22);
+  border-bottom: 1px solid #2a303a;
+  padding: 8px 12px;
+}
+
+.control-bar button.flat {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 4px;
+  color: #e6e9ef;
+}
+
+.control-bar button.flat:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.control-bar button.flat image {
+  color: #e6e9ef;
+}
+
+.control-bar .output-button {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 4px;
+  color: #e6e9ef;
+}
+
+.control-bar .output-button:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.control-bar .output-button image {
+  color: #e6e9ef;
+}
+
+.control-bar .output-label {
+  color: #cbd5e1;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.control-bar .now-playing {
+  font-weight: 600;
+}
+
+.control-bar .now-playing-artist {
+  color: #9aa4b2;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.control-bar .now-playing-time {
+  color: #cbd5e1;
+  font-size: 11px;
+}
+
+entry {
+  background-color: #141a22;
+  color: #e6e9ef;
+  border: 1px solid #2a303a;
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+
+entry:focus {
+  border-color: #3a4454;
+}
+
+scale trough {
+  background-color: #2a303a;
+  border-radius: 999px;
+  min-height: 4px;
+}
+
+scale highlight {
+  background-color: #4a90e2;
+  border-radius: 999px;
+}
+
+scale slider {
+  background-color: #e6e9ef;
+  border: 1px solid #2a303a;
+  border-radius: 999px;
+  min-height: 10px;
+  min-width: 10px;
+}
+
+.sidebar {
+  background: #141820;
+  border-right: 1px solid #2a303a;
+}
+
+.sidebar .section-title {
+  font-size: 17px;
+}
+
+.sidebar-section-header {
+  padding: 8px 10px 4px;
+}
+
+.sidebar-section-header .section-title {
+  padding: 0;
+}
+
+.playlist-add-button {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 2px;
+  color: #cbd5e1;
+}
+
+.playlist-add-button:hover {
+  background-color: #1f2530;
+  border-color: #2a303a;
+}
+
+.playlist-add-button:active {
+  background-color: #2b3442;
+}
+
+.playlist-add-button image {
+  color: #cbd5e1;
+}
+
+.sidebar-list row.sidebar-primary label {
+  font-size: 17px;
+}
+
+.sidebar-action {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 6px 10px;
+  color: #cbd5e1;
+}
+
+.sidebar-action label,
+.sidebar-action image {
+  color: #cbd5e1;
+}
+
+.sidebar-action:hover {
+  background-color: #1f2530;
+  border-color: #2a303a;
+}
+
+.sidebar-action:active {
+  background-color: #2b3442;
+}
+
+.sidebar-now-playing-art {
+  background-color: #1b212b;
+  border: 1px solid #2a303a;
+  border-radius: 8px;
+}
+
+.section-title {
+  font-weight: 600;
+  color: #c3c9d4;
+  padding: 8px 10px 4px;
+}
+
+.status-label {
+  color: #9aa4b2;
+  font-size: 11px;
+  padding: 0 10px 6px;
+}
+
+.status-label.error {
+  color: #f87171;
+}
+
+progressbar trough {
+  background-color: #2a303a;
+  border-radius: 999px;
+  min-height: 6px;
+}
+
+progressbar progress {
+  background-color: #4a90e2;
+  border-radius: 999px;
+}
+
+.sidebar-list {
+  background-color: transparent;
+}
+
+.sidebar-list row {
+  padding: 4px 10px;
+}
+
+.sidebar-list row:selected {
+  background-color: #2b3442;
+}
+
+.sidebar-list row:selected label {
+  color: #f1f5f9;
+}
+
+.settings-section {
+  background-color: transparent;
+}
+
+.settings-card {
+  background-color: #1a212b;
+  border: 1px solid #2a303a;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.home-section {
+  background-color: #f8fafc;
+}
+
+.home-section viewport {
+  background-color: #f8fafc;
+}
+
+.home-section-content {
+  padding: 14px 16px 18px;
+}
+
+.home-title {
+  color: #111827;
+  font-size: 20px;
+  font-weight: 700;
+  padding: 2px 4px 6px;
+}
+
+.home-card {
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.home-card .section-title {
+  color: #1f2937;
+  padding: 0 0 8px;
+}
+
+.home-card .status-label {
+  color: #6b7280;
+  padding: 4px 0 0;
+}
+
+.home-grid {
+  background-color: transparent;
+}
+
+.home-grid flowboxchild {
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.home-grid flowboxchild:hover {
+  background-color: #f1f5f9;
+}
+
+.home-album-card .album-title {
+  font-size: 13px;
+}
+
+.home-album-card .album-artist {
+  font-size: 11px;
+}
+
+.album-section {
+  padding: 10px;
+  background-color: #fbfbfb;
+}
+
+.album-section scrolledwindow,
+.album-section viewport {
+  background-color: #fbfbfb;
+}
+
+.album-section .section-title {
+  color: #1f2937;
+}
+
+.album-section .status-label {
+  color: #6b7280;
+}
+
+.playlist-detail {
+  background-color: transparent;
+}
+
+.playlist-detail-bg {
+  background-color: #0f131a;
+}
+
+.playlist-detail-dim {
+  background-color: rgba(9, 12, 18, 0.7);
+}
+
+.playlist-detail-content {
+  padding: 16px;
+}
+
+.playlist-detail-content scrolledwindow,
+.playlist-detail-content viewport {
+  background-color: transparent;
+}
+
+.playlist-detail-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.playlist-detail-content .section-title {
+  color: #e2e8f0;
+  padding: 0;
+}
+
+.playlist-detail-content .status-label {
+  color: #cbd5e1;
+  padding: 0 0 6px;
+}
+
+.playlist-detail-content .status-label.error {
+  color: #fca5a5;
+}
+
+.library-loading-overlay {
+  background-color: rgba(251, 251, 251, 0.9);
+  background-image: radial-gradient(
+    circle,
+    rgba(251, 251, 251, 0.96) 0%,
+    rgba(251, 251, 251, 0.88) 45%,
+    rgba(251, 251, 251, 0.65) 70%,
+    rgba(251, 251, 251, 0.0) 100%
+  );
+}
+
+.library-loading-shell {
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  min-width: 160px;
+  min-height: 160px;
+  padding: 18px;
+  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.18);
+}
+
+.library-loading-spinner {
+  color: #111827;
+}
+
+.library-loading-label {
+  color: #4b5563;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.album-header {
+  padding: 4px 10px 0;
+}
+
+.album-header .section-title {
+  padding: 0;
+}
+
+.album-filter-button {
+  background-color: #e2e8f0;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 4px 10px;
+  color: #0f172a;
+}
+
+.album-filter-button label,
+.album-filter-button image {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.album-filter-button:hover {
+  background-color: #dbe2ea;
+}
+
+popover.album-filter-popover > contents {
+  background-color: #f8fafc;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  color: #1f2937;
+}
+
+.output-title {
+  color: #cbd5e1;
+  font-weight: 600;
+  padding: 2px 4px;
+}
+
+.output-list row {
+  border-radius: 6px;
+  padding: 4px 6px;
+}
+
+.output-list row label {
+  color: #e6e9ef;
+}
+
+.output-list row:selected {
+  background-color: #2b3442;
+}
+
+.output-list row:selected label {
+  color: #f1f5f9;
+}
+
+popover.output-popover > contents {
+  background-color: #1a1f28;
+  border: 1px solid #2a303a;
+  border-radius: 8px;
+  color: #e6e9ef;
+}
+
+.album-filter-item {
+  padding: 4px 8px;
+}
+
+.album-filter-item label {
+  color: #111827;
+}
+
+.album-filter-item:hover {
+  background-color: #e2e8f0;
+  border-radius: 6px;
+}
+
+.album-detail {
+  background-color: transparent;
+}
+
+.album-detail-bg {
+  background-color: #0f131a;
+}
+
+.album-detail-dim {
+  background-color: rgba(9, 12, 18, 0.7);
+}
+
+.album-detail-content {
+  padding: 16px;
+}
+
+.album-detail-content scrolledwindow,
+.album-detail-content viewport {
+  background-color: transparent;
+}
+
+.album-detail-content .section-title {
+  color: #e2e8f0;
+  padding: 0;
+}
+
+.album-detail-content .status-label {
+  color: #cbd5e1;
+}
+
+.album-detail-content .status-label.error {
+  color: #fca5a5;
+}
+
+.detail-back {
+  background: rgba(15, 23, 42, 0.35);
+  border: 1px solid rgba(226, 232, 240, 0.3);
+  border-radius: 6px;
+  padding: 6px 10px;
+  color: #e2e8f0;
+}
+
+.detail-back label,
+.detail-back image {
+  color: #e2e8f0;
+}
+
+.detail-back:hover {
+  background-color: rgba(15, 23, 42, 0.55);
+}
+
+.detail-art {
+  background-color: #ffffff;
+  border-radius: 6px;
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.15);
+}
+
+.detail-title {
+  font-weight: 700;
+  font-size: 22px;
+  color: #f8fafc;
+}
+
+.detail-artist {
+  color: #cbd5e1;
+  font-size: 13px;
+}
+
+.detail-play.suggested-action {
+  padding: 6px;
+  min-width: 36px;
+  min-height: 32px;
+}
+
+.detail-play image {
+  color: #ffffff;
+}
+
+.track-table {
+  background-color: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  border-radius: 8px;
+  color: #111827;
+}
+
+.track-table header {
+  background-color: rgba(226, 232, 240, 0.95);
+  border-bottom: 1px solid rgba(209, 213, 219, 0.9);
+  color: #1f2937;
+}
+
+.track-table header button {
+  background: transparent;
+  border: none;
+  color: #1f2937;
+  font-weight: 600;
+  padding: 4px 8px;
+}
+
+.track-table header button:hover {
+  background-color: #dbe2ea;
+}
+
+.track-table label {
+  color: #111827;
+}
+
+.track-table header label {
+  color: #1f2937;
+}
+
+.track-table listview {
+  background-color: transparent;
+}
+
+columnview.track-table listview {
+  border: 0;
+  box-shadow: none;
+  background-image: none;
+}
+
+.track-table row,
+.track-table listitem {
+  background-color: transparent;
+  border: 0;
+  box-shadow: none;
+  outline: none;
+  padding: 0;
+  min-height: 0;
+}
+
+columnview.track-table listview listitem,
+columnview.track-table listview row {
+  border-bottom: 0;
+  box-shadow: none;
+  background-image: none;
+}
+
+columnview.track-table listview listitem:selected,
+columnview.track-table listview listitem:hover {
+  box-shadow: none;
+}
+
+.track-table listview > separator,
+.track-table listview separator,
+.track-table separator.horizontal {
+  background-color: transparent;
+  min-height: 0;
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.track-table row:nth-child(even),
+.track-table listitem:nth-child(even) {
+  background-color: rgba(248, 250, 252, 0.9);
+}
+
+.track-table listview listitem:selected,
+.track-table row:selected {
+  background-color: rgba(219, 234, 254, 0.95);
+}
+
+.track-table listview listitem:selected label,
+.track-table row:selected label {
+  color: #0f172a;
+}
+
+.playing-indicator {
+  color: #16a34a;
+}
+
+.track-action-button {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 1px;
+}
+
+.track-action-button:hover {
+  background-color: #eef2f7;
+  border-color: #d1d5db;
+}
+
+popover.track-action-popover {
+  background-color: transparent;
+  color: #111827;
+}
+
+popover.track-action-popover > contents {
+  background-color: #f1f5f9;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  color: #111827;
+}
+
+.track-action-item {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: #111827;
+  padding: 4px 8px;
+}
+
+.track-action-item label {
+  color: #111827;
+}
+
+.track-action-item:hover {
+  background-color: #e2e8f0;
+  border-color: #d1d5db;
+}
+
+.album-section flowboxchild:selected {
+  background-color: transparent;
+}
+
+.album-card {
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background-color: transparent;
+}
+
+.album-art {
+  background-color: #ffffff;
+  border-radius: 2px;
+  border: none;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.18);
+}
+
+.album-title {
+  font-weight: 700;
+  font-size: 14px;
+  color: #1f2937;
+}
+
+.album-artist {
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.artists-header {
+  background-color: #1a2029;
+  border-bottom: 1px solid #2a303a;
+  padding: 6px 8px;
+  font-weight: 600;
+}
+
+.artist-row {
+  padding: 6px 8px;
+}
+
+.artist-row:hover {
+  background-color: #1f2530;
+}
+
+.artist-row:selected {
+  background-color: #2b3442;
+}
