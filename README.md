@@ -26,6 +26,9 @@ Mainly built with help from ChatGPT Codex.
 
 ## Dependencies
 
+A Music Assistant 2.7 installation is required 
+* https://www.music-assistant.io/
+
 ### System Dependencies
 
 GStreamer 1.0 with plugins:
