@@ -363,6 +363,14 @@ progressbar progress {
   padding: 12px 16px 18px;
 }
 
+.search-section-content.search-layout-compact {
+  padding: 8px 12px 14px;
+}
+
+.search-section-content.search-layout-roomy {
+  padding: 18px 22px 24px;
+}
+
 .search-section-content .status-label {
   color: #6b7280;
   padding: 0 4px;
@@ -394,12 +402,28 @@ progressbar progress {
   border-radius: 8px;
 }
 
+.search-grid.search-grid-compact flowboxchild {
+  padding: 2px;
+}
+
+.search-grid.search-grid-roomy flowboxchild {
+  padding: 6px;
+}
+
 .search-grid flowboxchild:hover {
   background-color: #f1f5f9;
 }
 
 .search-group .artist-row label {
   color: #1f2937;
+}
+
+.search-artist-list.search-layout-compact .artist-row label {
+  padding: 2px 4px;
+}
+
+.search-artist-list.search-layout-roomy .artist-row label {
+  padding: 6px 8px;
 }
 
 .search-group .artist-row:hover {
@@ -435,6 +459,16 @@ progressbar progress {
   font-size: 22px;
   font-weight: 700;
   color: #f8fafc;
+}
+
+.playlist-readonly-badge {
+  background-color: rgba(248, 113, 113, 0.16);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  border-radius: 999px;
+  color: #fecaca;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
 }
 
 .playlist-detail-content .section-title {

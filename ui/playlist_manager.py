@@ -146,8 +146,58 @@ def on_playlist_add_clicked(app, _button: Gtk.Button) -> None:
     show_create_playlist_dialog(app)
 
 
-def show_create_playlist_dialog(app) -> None:
+def build_playlist_action_row(app) -> Gtk.Box:
+    actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+    actions.set_halign(Gtk.Align.START)
+
+    rename_button = Gtk.Button(label="Rename")
+    rename_button.set_tooltip_text("Rename playlist")
+    rename_button.set_sensitive(False)
+    rename_button.connect(
+        "clicked", lambda button: on_playlist_rename_clicked(app, button)
+    )
+
+    delete_button = Gtk.Button(label="Delete")
+    delete_button.add_css_class("destructive-action")
+    delete_button.set_tooltip_text("Delete playlist")
+    delete_button.set_sensitive(False)
+    delete_button.connect(
+        "clicked", lambda button: on_playlist_delete_clicked(app, button)
+    )
+
+    actions.append(rename_button)
+    actions.append(delete_button)
+
+    app.playlist_detail_rename_button = rename_button
+    app.playlist_detail_delete_button = delete_button
+    return actions
+
+
+def on_playlist_rename_clicked(app, _button: Gtk.Button) -> None:
+    playlist = app.current_playlist
+    if not playlist:
+        set_playlists_status(app, "No playlist selected.", is_error=True)
+        return
+    show_rename_playlist_dialog(app, playlist)
+
+
+def on_playlist_delete_clicked(app, _button: Gtk.Button) -> None:
+    playlist = app.current_playlist
+    if not playlist:
+        set_playlists_status(app, "No playlist selected.", is_error=True)
+        return
+    show_delete_playlist_dialog(app, playlist)
+
+
+def show_create_playlist_dialog(app, track=None) -> None:
     if not app.window:
+        return
+    if not app.server_url:
+        set_playlists_status(
+            app,
+            "Connect to your Music Assistant server to create playlists.",
+            is_error=True,
+        )
         return
     dialog = Gtk.Window(application=app, transient_for=app.window, modal=True)
     dialog.set_title("New Playlist")
@@ -190,7 +240,7 @@ def show_create_playlist_dialog(app) -> None:
         if not name:
             return
         dialog.close()
-        create_playlist(app, name)
+        create_playlist(app, name, track)
 
     name_entry.connect("changed", update_create_state)
     name_entry.connect("activate", submit_dialog)
@@ -202,7 +252,7 @@ def show_create_playlist_dialog(app) -> None:
     name_entry.grab_focus()
 
 
-def create_playlist(app, name: str) -> None:
+def create_playlist(app, name: str, track=None) -> None:
     cleaned = name.strip()
     if not cleaned:
         return
@@ -216,13 +266,13 @@ def create_playlist(app, name: str) -> None:
     set_playlists_status(app, "Creating playlist...")
     thread = threading.Thread(
         target=create_playlist_worker,
-        args=(app, cleaned),
+        args=(app, cleaned, track),
         daemon=True,
     )
     thread.start()
 
 
-def create_playlist_worker(app, name: str) -> None:
+def create_playlist_worker(app, name: str, track) -> None:
     error = ""
     playlist = None
     try:
@@ -244,10 +294,10 @@ def create_playlist_worker(app, name: str) -> None:
         error = str(exc)
     except Exception as exc:
         error = str(exc)
-    GLib.idle_add(on_playlist_created, app, playlist, error)
+    GLib.idle_add(on_playlist_created, app, playlist, error, track)
 
 
-def on_playlist_created(app, _playlist: object, error: str) -> None:
+def on_playlist_created(app, playlist: object, error: str, track) -> None:
     if error:
         set_playlists_status(
             app,
@@ -256,6 +306,366 @@ def on_playlist_created(app, _playlist: object, error: str) -> None:
         )
         return
     refresh_playlists(app)
+    if track and playlist:
+        add_track_to_playlist(app, track, playlist)
+
+
+def show_rename_playlist_dialog(app, playlist: object) -> None:
+    if not app.window:
+        return
+    if not app.server_url:
+        set_playlists_status(
+            app,
+            "Connect to your Music Assistant server to edit playlists.",
+            is_error=True,
+        )
+        return
+    if not _is_editable_playlist(playlist):
+        set_playlists_status(
+            app,
+            "This playlist cannot be edited.",
+            is_error=True,
+        )
+        return
+    current_name = _get_playlist_name(playlist)
+
+    dialog = Gtk.Window(application=app, transient_for=app.window, modal=True)
+    dialog.set_title("Rename Playlist")
+    dialog.set_default_size(360, -1)
+    dialog.set_resizable(False)
+
+    content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+    content.set_margin_top(16)
+    content.set_margin_bottom(16)
+    content.set_margin_start(16)
+    content.set_margin_end(16)
+
+    name_label = Gtk.Label(label="Playlist name", xalign=0)
+    name_entry = Gtk.Entry()
+    name_entry.set_text(current_name)
+    name_entry.set_hexpand(True)
+
+    actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+    actions.set_halign(Gtk.Align.END)
+    cancel_button = Gtk.Button(label="Cancel")
+    rename_button = Gtk.Button(label="Rename")
+    rename_button.add_css_class("suggested-action")
+    rename_button.set_sensitive(False)
+    actions.append(cancel_button)
+    actions.append(rename_button)
+
+    content.append(name_label)
+    content.append(name_entry)
+    content.append(actions)
+    dialog.set_child(content)
+
+    def update_rename_state(*_args: object) -> None:
+        cleaned = name_entry.get_text().strip()
+        rename_button.set_sensitive(bool(cleaned) and cleaned != current_name)
+
+    def close_dialog(*_args: object) -> None:
+        dialog.close()
+
+    def submit_dialog(*_args: object) -> None:
+        name = name_entry.get_text().strip()
+        if not name or name == current_name:
+            dialog.close()
+            return
+        dialog.close()
+        rename_playlist(app, playlist, name)
+
+    name_entry.connect("changed", update_rename_state)
+    name_entry.connect("activate", submit_dialog)
+    cancel_button.connect("clicked", close_dialog)
+    rename_button.connect("clicked", submit_dialog)
+
+    update_rename_state()
+    dialog.present()
+    name_entry.grab_focus()
+    name_entry.select_region(0, -1)
+
+
+def rename_playlist(app, playlist: object, name: str) -> None:
+    cleaned = name.strip()
+    if not cleaned:
+        return
+    if not app.server_url:
+        set_playlists_status(
+            app,
+            "Connect to your Music Assistant server to edit playlists.",
+            is_error=True,
+        )
+        return
+    if not _is_editable_playlist(playlist):
+        set_playlists_status(
+            app,
+            "This playlist cannot be edited.",
+            is_error=True,
+        )
+        return
+    playlist_id = _get_playlist_id(playlist)
+    if not playlist_id:
+        set_playlists_status(
+            app,
+            "Unable to rename playlist: missing playlist ID.",
+            is_error=True,
+        )
+        return
+    provider = _get_playlist_provider(playlist)
+    if not provider:
+        set_playlists_status(
+            app,
+            "Unable to rename playlist: missing playlist provider.",
+            is_error=True,
+        )
+        return
+    playlist_name = _get_playlist_name(playlist)
+    set_playlists_status(app, f"Renaming {playlist_name}...")
+    thread = threading.Thread(
+        target=rename_playlist_worker,
+        args=(app, playlist_id, provider, playlist_name, cleaned),
+        daemon=True,
+    )
+    thread.start()
+
+
+def rename_playlist_worker(
+    app,
+    playlist_id: str | int,
+    provider: str,
+    playlist_name: str,
+    new_name: str,
+) -> None:
+    error = ""
+    updated = None
+    try:
+        updated = app.client_session.run(
+            app.server_url,
+            app.auth_token,
+            library.rename_playlist,
+            playlist_id,
+            provider,
+            new_name,
+        )
+    except AuthenticationRequired:
+        error = "Authentication required. Add an access token in Settings."
+    except AuthenticationFailed:
+        error = "Authentication failed. Check your access token."
+    except CannotConnect as exc:
+        error = f"Unable to reach server at {app.server_url}: {exc}"
+    except InvalidServerVersion as exc:
+        error = str(exc)
+    except MusicAssistantClientException as exc:
+        error = str(exc)
+    except Exception as exc:
+        error = str(exc)
+    GLib.idle_add(
+        on_playlist_renamed,
+        app,
+        playlist_id,
+        playlist_name,
+        new_name,
+        updated,
+        error,
+    )
+
+
+def on_playlist_renamed(
+    app,
+    playlist_id: str | int,
+    playlist_name: str,
+    new_name: str,
+    updated: object,
+    error: str,
+) -> None:
+    if error:
+        set_playlists_status(
+            app,
+            f"Unable to rename playlist: {error}",
+            is_error=True,
+        )
+        return
+    refresh_playlists(app)
+    set_playlists_status(app, f"Renamed {playlist_name} to {new_name}.")
+    current = app.current_playlist
+    if current and _playlist_id_matches(current, playlist_id):
+        updated_payload = None
+        if updated:
+            try:
+                updated_payload = library._serialize_playlist(updated)
+            except Exception:
+                updated_payload = None
+        if updated_payload:
+            app.current_playlist = updated_payload
+            app.current_album = updated_payload
+            if app.playlist_detail_title:
+                app.playlist_detail_title.set_label(
+                    _get_playlist_name(updated_payload)
+                )
+            new_id = _get_playlist_id(updated_payload)
+            if new_id is not None and str(new_id) != str(playlist_id):
+                app.load_playlist_tracks(updated_payload)
+
+
+def show_delete_playlist_dialog(app, playlist: object) -> None:
+    if not app.window:
+        return
+    if not app.server_url:
+        set_playlists_status(
+            app,
+            "Connect to your Music Assistant server to edit playlists.",
+            is_error=True,
+        )
+        return
+    if not _is_editable_playlist(playlist):
+        set_playlists_status(
+            app,
+            "This playlist cannot be edited.",
+            is_error=True,
+        )
+        return
+    playlist_name = _get_playlist_name(playlist)
+
+    dialog = Gtk.Window(application=app, transient_for=app.window, modal=True)
+    dialog.set_title("Delete Playlist")
+    dialog.set_default_size(360, -1)
+    dialog.set_resizable(False)
+
+    content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+    content.set_margin_top(16)
+    content.set_margin_bottom(16)
+    content.set_margin_start(16)
+    content.set_margin_end(16)
+
+    message = Gtk.Label(
+        label=f'Delete "{playlist_name}"? This cannot be undone.',
+        xalign=0,
+    )
+    message.set_wrap(True)
+
+    actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+    actions.set_halign(Gtk.Align.END)
+    cancel_button = Gtk.Button(label="Cancel")
+    delete_button = Gtk.Button(label="Delete")
+    delete_button.add_css_class("destructive-action")
+    actions.append(cancel_button)
+    actions.append(delete_button)
+
+    content.append(message)
+    content.append(actions)
+    dialog.set_child(content)
+
+    def close_dialog(*_args: object) -> None:
+        dialog.close()
+
+    def submit_dialog(*_args: object) -> None:
+        dialog.close()
+        delete_playlist(app, playlist)
+
+    cancel_button.connect("clicked", close_dialog)
+    delete_button.connect("clicked", submit_dialog)
+
+    dialog.present()
+
+
+def delete_playlist(app, playlist: object) -> None:
+    if not app.server_url:
+        set_playlists_status(
+            app,
+            "Connect to your Music Assistant server to edit playlists.",
+            is_error=True,
+        )
+        return
+    if not _is_editable_playlist(playlist):
+        set_playlists_status(
+            app,
+            "This playlist cannot be edited.",
+            is_error=True,
+        )
+        return
+    playlist_id = _get_playlist_id(playlist)
+    if not playlist_id:
+        set_playlists_status(
+            app,
+            "Unable to delete playlist: missing playlist ID.",
+            is_error=True,
+        )
+        return
+    playlist_name = _get_playlist_name(playlist)
+    set_playlists_status(app, f"Deleting {playlist_name}...")
+    thread = threading.Thread(
+        target=delete_playlist_worker,
+        args=(app, playlist_id, playlist_name),
+        daemon=True,
+    )
+    thread.start()
+
+
+def delete_playlist_worker(
+    app, playlist_id: str | int, playlist_name: str
+) -> None:
+    error = ""
+    try:
+        app.client_session.run(
+            app.server_url,
+            app.auth_token,
+            library.delete_playlist,
+            playlist_id,
+        )
+    except AuthenticationRequired:
+        error = "Authentication required. Add an access token in Settings."
+    except AuthenticationFailed:
+        error = "Authentication failed. Check your access token."
+    except CannotConnect as exc:
+        error = f"Unable to reach server at {app.server_url}: {exc}"
+    except InvalidServerVersion as exc:
+        error = str(exc)
+    except MusicAssistantClientException as exc:
+        error = str(exc)
+    except Exception as exc:
+        error = str(exc)
+    GLib.idle_add(
+        on_playlist_deleted,
+        app,
+        playlist_id,
+        playlist_name,
+        error,
+    )
+
+
+def on_playlist_deleted(
+    app, playlist_id: str | int, playlist_name: str, error: str
+) -> None:
+    if error:
+        set_playlists_status(
+            app,
+            f"Unable to delete playlist: {error}",
+            is_error=True,
+        )
+        return
+    refresh_playlists(app)
+    set_playlists_status(app, f"Deleted {playlist_name}.")
+    current = app.current_playlist
+    if current and _playlist_id_matches(current, playlist_id):
+        _close_playlist_detail_view(app)
+
+
+def _close_playlist_detail_view(app) -> None:
+    app.current_playlist = None
+    app.current_album = None
+    app.current_album_tracks = []
+    if app.main_stack:
+        app.main_stack.set_visible_child_name("home")
+    if app.playlists_list:
+        app.playlists_list.unselect_all()
+    if app.home_nav_list:
+        app.home_nav_list.unselect_all()
+    if app.library_list:
+        app.library_list.unselect_all()
+    if app.playlist_detail_title:
+        app.playlist_detail_title.set_label("Playlist")
+    if hasattr(app, "set_playlist_detail_status"):
+        app.set_playlist_detail_status("")
 
 
 def show_add_to_playlist_dialog(app, track) -> None:
@@ -444,6 +854,12 @@ def _get_playlist_id(playlist: object) -> str | int | None:
     if isinstance(playlist, dict):
         return playlist.get("item_id") or playlist.get("id")
     return getattr(playlist, "item_id", None)
+
+
+def _get_playlist_provider(playlist: object) -> str | None:
+    if isinstance(playlist, dict):
+        return playlist.get("provider")
+    return getattr(playlist, "provider", None)
 
 
 def _playlist_id_matches(playlist: object, playlist_id: str | int) -> bool:

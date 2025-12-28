@@ -4,6 +4,57 @@ from constants import DEFAULT_SERVER_URL
 from ui import eq_settings, ui_utils
 from utils import normalize_server_url
 
+DEFAULT_SETTINGS_HINT = "Connect to Music Assistant to load your library."
+ONBOARDING_SETTINGS_HINT = (
+    "Enter your Music Assistant server address and click Connect to get started."
+)
+
+
+def update_settings_hint(app) -> None:
+    label = getattr(app, "settings_hint_label", None)
+    if not label:
+        return
+    if getattr(app, "server_url", ""):
+        label.set_label(DEFAULT_SETTINGS_HINT)
+    else:
+        label.set_label(ONBOARDING_SETTINGS_HINT)
+
+
+def _set_settings_status(app, message: str, is_error: bool = False) -> None:
+    label = getattr(app, "settings_status_label", None)
+    if not label:
+        return
+    if is_error:
+        label.add_css_class("error")
+    else:
+        label.remove_css_class("error")
+    label.set_label(message)
+    label.set_visible(bool(message))
+
+
+def _reset_settings_status(app) -> None:
+    label = getattr(app, "settings_status_label", None)
+    if not label:
+        return
+    label.remove_css_class("error")
+    label.set_label("")
+    label.set_visible(False)
+
+
+def _get_connection_inputs(app) -> tuple[str, str] | None:
+    if not app.settings_server_entry or not app.settings_token_entry:
+        return None
+    server_url = normalize_server_url(app.settings_server_entry.get_text())
+    if not server_url:
+        _set_settings_status(
+            app,
+            "Enter a valid server address to connect.",
+            is_error=True,
+        )
+        return None
+    auth_token = app.settings_token_entry.get_text().strip()
+    return server_url, auth_token
+
 
 def build_settings_section(app) -> Gtk.Widget:
     settings_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
@@ -32,10 +83,12 @@ def build_settings_section(app) -> Gtk.Widget:
     header.set_xalign(0)
     settings_box.append(header)
 
-    hint = Gtk.Label(label="Connect to Music Assistant to load your library.")
+    hint = Gtk.Label()
     hint.add_css_class("status-label")
     hint.set_xalign(0)
     hint.set_wrap(True)
+    app.settings_hint_label = hint
+    update_settings_hint(app)
     settings_box.append(hint)
 
     form = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
@@ -66,6 +119,12 @@ def build_settings_section(app) -> Gtk.Widget:
     form.append(grid)
 
     actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+    test_button = Gtk.Button(label="Test Connection")
+    test_button.connect(
+        "clicked",
+        lambda button: on_settings_test_clicked(app, button),
+    )
+    actions.append(test_button)
     connect_button = Gtk.Button(label="Connect")
     connect_button.add_css_class("suggested-action")
     connect_button.connect(
@@ -257,6 +316,7 @@ def on_settings_clicked(app, _button: Gtk.Button) -> None:
         if current_view != "settings":
             app.settings_previous_view = current_view
         app.main_stack.set_visible_child_name("settings")
+    update_settings_hint(app)
 
 
 def navigate_to_eq_settings(app) -> None:
@@ -290,18 +350,61 @@ def on_settings_back_clicked(app, _button: Gtk.Button) -> None:
     app.settings_previous_view = None
 
 
-def on_settings_connect_clicked(app, _button: Gtk.Button) -> None:
-    if not app.settings_server_entry or not app.settings_token_entry:
+def on_settings_test_clicked(app, _button: Gtk.Button) -> None:
+    _reset_settings_status(app)
+    inputs = _get_connection_inputs(app)
+    if not inputs:
         return
-    server_url = normalize_server_url(app.settings_server_entry.get_text())
-    if not server_url:
-        app.set_status(
-            "Enter a valid server address to connect.",
-            is_error=True,
+    server_url, auth_token = inputs
+    _set_settings_status(app, "Testing connection...", is_error=False)
+
+    def on_success() -> None:
+        _set_settings_status(
+            app,
+            f"Connection to {server_url} succeeded. Settings not saved.",
+            is_error=False,
         )
+
+    def on_error(error: str) -> None:
+        message = error or f"Unable to connect to {server_url}."
+        _set_settings_status(app, message, is_error=True)
+
+    app.connect_to_server(
+        server_url,
+        auth_token,
+        persist=False,
+        on_success=on_success,
+        on_error=on_error,
+    )
+
+
+def on_settings_connect_clicked(app, _button: Gtk.Button) -> None:
+    _reset_settings_status(app)
+    inputs = _get_connection_inputs(app)
+    if not inputs:
         return
-    auth_token = app.settings_token_entry.get_text().strip()
-    app.connect_to_server(server_url, auth_token, persist=True)
+    server_url, auth_token = inputs
+    _set_settings_status(app, "Connecting…", is_error=False)
+
+    def on_success() -> None:
+        _set_settings_status(
+            app,
+            f"Connected to {server_url}.",
+            is_error=False,
+        )
+
+    def on_error(error: str) -> None:
+        message = error or f"Unable to connect to {server_url}."
+        _set_settings_status(app, message, is_error=True)
+
+    app.connect_to_server(
+        server_url,
+        auth_token,
+        persist=True,
+        on_success=on_success,
+        on_error=on_error,
+    )
+    update_settings_hint(app)
 
 
 def on_gtk_debug_enable_clicked(app, _button: Gtk.Button) -> None:

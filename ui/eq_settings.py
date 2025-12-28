@@ -52,6 +52,20 @@ EQ_GRAPH_LOG_MIN = math.log10(EQ_GRAPH_MIN_FREQ)
 EQ_GRAPH_LOG_RANGE = math.log10(EQ_GRAPH_MAX_FREQ) - EQ_GRAPH_LOG_MIN
 
 
+def _get_eq_manager(app):
+    getter = getattr(app, "get_eq_manager", None)
+    if callable(getter):
+        return getter()
+    media3_manager = getattr(app, "media3_eq_manager", None)
+    if media3_manager and getattr(media3_manager, "is_available", None):
+        try:
+            if media3_manager.is_available():
+                return media3_manager
+        except Exception:
+            pass
+    return getattr(app, "audio_pipeline", None)
+
+
 def build_eq_section(app) -> Gtk.Widget:
     card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
     card.add_css_class("settings-card")
@@ -155,7 +169,8 @@ def build_eq_section(app) -> Gtk.Widget:
     app.eq_graph_area = graph_area
     app.eq_graph_placeholder = graph_placeholder
 
-    eq_state = app.audio_pipeline.get_eq_state()
+    eq_manager = _get_eq_manager(app)
+    eq_state = eq_manager.get_eq_state() if eq_manager else {}
     app.eq_enabled = bool(eq_state.get("enabled", False))
     toggle_switch.set_active(app.eq_enabled)
 
@@ -186,7 +201,9 @@ def build_eq_section(app) -> Gtk.Widget:
 
 
 def on_eq_toggle_changed(app, _switch: Gtk.Switch, state: bool) -> bool:
-    app.audio_pipeline.set_eq_enabled(state)
+    eq_manager = _get_eq_manager(app)
+    if eq_manager:
+        eq_manager.set_eq_enabled(state)
     app.eq_enabled = bool(state)
     app.persist_eq_settings()
     return False
@@ -210,10 +227,12 @@ def on_eq_preset_search_changed(app, entry: Gtk.SearchEntry) -> None:
 
 
 def on_eq_preset_changed(app, combo: Gtk.ComboBoxText) -> None:
+    eq_manager = _get_eq_manager(app)
     preset_id = combo.get_active_id()
     if not preset_id or preset_id == "none":
         app.eq_selected_preset = None
-        app.audio_pipeline.set_eq_enabled(False)
+        if eq_manager:
+            eq_manager.set_eq_enabled(False)
         app.eq_enabled = False
         _set_eq_toggle_state(app, False)
         update_preset_details(app, None)
@@ -246,7 +265,7 @@ def on_eq_preset_changed(app, combo: Gtk.ComboBoxText) -> None:
     try:
         eq_presets.apply_preset_to_pipeline(
             preset,
-            app.audio_pipeline,
+            eq_manager or app.audio_pipeline,
         )
     except Exception as exc:
         _LOGGER.warning("Failed to apply EQ preset %s: %s", preset_id, exc)

@@ -28,6 +28,7 @@ def show_playlist_detail(app, playlist: dict) -> None:
     name = get_playlist_name(playlist)
     if app.playlist_detail_title:
         app.playlist_detail_title.set_label(name)
+    set_playlist_editable_state(app, playlist)
     clear_playlist_detail_art(app)
     populate_playlist_track_table(app, [])
     load_playlist_tracks(app, playlist)
@@ -38,6 +39,38 @@ def set_playlist_detail_status(app, message: str) -> None:
         return
     app.playlist_detail_status_label.set_label(message)
     app.playlist_detail_status_label.set_visible(bool(message))
+
+
+def set_playlist_editable_state(app, playlist: dict) -> None:
+    is_editable = _is_editable_playlist(playlist)
+    app.playlist_detail_is_editable = is_editable
+    badge = getattr(app, "playlist_detail_read_only_badge", None)
+    if badge:
+        badge.set_visible(not is_editable)
+    for attr in ("playlist_detail_rename_button", "playlist_detail_delete_button"):
+        button = getattr(app, attr, None)
+        if button:
+            button.set_sensitive(is_editable)
+
+
+def update_playlist_play_button(app) -> None:
+    button = getattr(app, "playlist_detail_play_button", None)
+    if not button:
+        return
+    can_play = bool(app.current_album_tracks) and bool(app.server_url)
+    button.set_sensitive(can_play)
+    button.set_visible(can_play)
+
+
+def on_playlist_play_clicked(app, _button) -> None:
+    if not app.server_url or not app.current_album_tracks:
+        return
+    app.playback_album = app.current_album
+    app.playback_album_tracks = [
+        track_utils.snapshot_track(item, track_utils.get_track_identity)
+        for item in app.current_album_tracks
+    ]
+    app.start_playback_from_index(0, reset_queue=True)
 
 
 def load_playlist_tracks(app, playlist: dict) -> None:
@@ -303,6 +336,7 @@ def populate_playlist_track_table(app, tracks: list[dict]) -> None:
     if app.playlist_tracks_view and app.playlist_tracks_selection:
         app.playlist_tracks_view.set_model(app.playlist_tracks_selection)
     app.sync_playback_highlight()
+    update_playlist_play_button(app)
     logging.getLogger(__name__).debug(
         "Playlist track store items: %s sort model items: %s",
         app.playlist_tracks_store.get_n_items(),

@@ -15,6 +15,20 @@ from music_assistant_client.exceptions import (
 from music_assistant_models.errors import AuthenticationFailed, AuthenticationRequired
 
 
+def _notify_connection_result(app, error: str) -> None:
+    callbacks = getattr(app, "_pending_connection_callbacks", None)
+    if not callbacks or not isinstance(callbacks, dict):
+        return
+    on_success = callbacks.get("on_success")
+    on_error = callbacks.get("on_error")
+    app._pending_connection_callbacks = None
+    if error:
+        if callable(on_error):
+            on_error(error)
+    elif callable(on_success):
+        on_success()
+
+
 def load_library(app) -> None:
     from ui import playlist_manager
 
@@ -113,9 +127,11 @@ def on_library_loaded(
 
     if error:
         app.set_status(error, is_error=True)
+        _notify_connection_result(app, error)
         return
 
     app.set_status("", is_error=False)
+    _notify_connection_result(app, error)
     from ui import album_grid
 
     album_grid.set_album_items(app, albums)

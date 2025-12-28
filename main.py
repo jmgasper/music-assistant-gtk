@@ -95,7 +95,7 @@ class MusicApp(Gtk.Application):
             "artist_albums_previous_view", "albums_header", "album_type_filter_button",
             "artists_header", "library_status_label", "library_loading_overlay", "library_loading_spinner",
             "library_loading_label", "settings_button", "sidebar_now_playing_art", "sidebar_now_playing_art_url",
-            "settings_server_entry", "settings_token_entry", "settings_status_label", "settings_connect_button",
+            "settings_server_entry", "settings_token_entry", "settings_hint_label", "settings_status_label", "settings_connect_button",
             "settings_previous_view", "settings_output_backend_combo", "settings_pulse_device_entry", "settings_alsa_device_entry",
             "eq_settings_card", "eq_preset_search_entry", "eq_graph_area", "eq_graph_placeholder", "settings_scrolled_window",
             "gtk_debug_status_label", "library_list", "home_nav_list", "playlists_list",
@@ -113,7 +113,7 @@ class MusicApp(Gtk.Application):
             "play_pause_button", "play_pause_image", "playback_sync_id",
             "previous_button", "next_button", "volume_slider", "eq_button", "volume_update_id",
             "pending_volume_value", "output_menu_button", "output_popover", "output_targets_list", "sendspin_pipeline_teardown_id",
-            "output_status_label", "output_label", "_last_sendspin_local_output_id", "output_manager",
+            "output_status_label", "output_label", "_last_sendspin_local_output_id", "output_manager", "media3_eq_manager",
             "search_entry", "search_results_view", "search_status_label", "search_playlists_section",
             "search_playlists_flow", "search_albums_section", "search_albums_flow", "search_artists_section",
             "search_artists_list", "search_tracks_section", "search_tracks_store", "search_tracks_sort_model",
@@ -129,6 +129,7 @@ class MusicApp(Gtk.Application):
             "_resume_after_sendspin_connect", "search_loading", "search_active",
         ):
             setattr(self, name, False)
+        self._pending_connection_callbacks = None
         self.eq_enabled = False
         self.eq_selected_preset = None
         self.eq_preset_combo = None
@@ -167,6 +168,7 @@ class MusicApp(Gtk.Application):
                 else []
             )
         )
+        self.media3_eq_manager = audio_pipeline.Media3EqualizerManager()
         self.sendspin_manager = sendspin.SendspinManager(
             get_supported_formats=lambda: (
                 self.output_manager.get_preferred_local_output_formats_for_sendspin()
@@ -208,15 +210,22 @@ class MusicApp(Gtk.Application):
             return
         self._load_eq_preset_in_background(self.eq_selected_preset)
 
+    def get_eq_manager(self):
+        media3_eq_manager = getattr(self, "media3_eq_manager", None)
+        if media3_eq_manager and media3_eq_manager.is_available():
+            return media3_eq_manager
+        return self.audio_pipeline
+
     def _apply_eq_preset(self, preset: dict, preset_id: str) -> None:
         try:
             from music_assistant import eq_presets
 
+            eq_manager = self.get_eq_manager()
             eq_presets.apply_preset_to_pipeline(
                 preset,
-                self.audio_pipeline,
+                eq_manager,
             )
-            self.audio_pipeline.set_eq_enabled(self.eq_enabled)
+            eq_manager.set_eq_enabled(self.eq_enabled)
         except Exception as exc:
             logging.getLogger(__name__).warning(
                 "Failed to apply EQ preset %s: %s",
@@ -309,6 +318,8 @@ class MusicApp(Gtk.Application):
             self.auto_load_attempted = True
             if self.server_url:
                 GLib.idle_add(self.load_library)
+            else:
+                GLib.idle_add(settings_panel.on_settings_clicked, self, None)
         self.window.present()
 
     def do_shutdown(self) -> None:
@@ -316,6 +327,8 @@ class MusicApp(Gtk.Application):
             self.image_executor.shutdown(wait=False)
         self.sendspin_manager.stop()
         self.audio_pipeline.destroy_pipeline()
+        if self.media3_eq_manager:
+            self.media3_eq_manager.release()
         self.output_manager.stop_monitoring()
         if self.client_session:
             self.client_session.stop()
@@ -388,7 +401,7 @@ for binder, source, names in (
     (_bind_methods, album_operations, ("show_album_detail", "set_album_detail_status", "get_albums_scroll_position", "restore_album_scroll", "load_album_tracks", "_load_album_tracks_worker", "_fetch_album_tracks_async", "on_album_tracks_loaded", "populate_track_table", "on_album_detail_close", "on_album_play_clicked", "is_same_album")),
     (_bind_static_methods, album_operations, ("get_album_name", "get_album_track_candidates", "get_album_identity")),
     (_bind_methods, artist_operations, ("show_artist_albums", "refresh_artist_albums", "populate_artist_album_flow", "on_artist_row_activated", "on_artist_album_activated", "on_artist_albums_back")),
-    (_bind_methods, playlist_operations, ("show_playlist_detail", "set_playlist_detail_status", "load_playlist_tracks", "_load_playlist_tracks_worker", "_fetch_playlist_tracks_async", "on_playlist_tracks_loaded", "populate_playlist_track_table")),
+    (_bind_methods, playlist_operations, ("show_playlist_detail", "set_playlist_detail_status", "load_playlist_tracks", "_load_playlist_tracks_worker", "_fetch_playlist_tracks_async", "on_playlist_tracks_loaded", "populate_playlist_track_table", "on_playlist_play_clicked")),
     (_bind_methods, playback_state, ("start_playback_from_track", "start_playback_from_index", "handle_previous_action", "handle_next_action", "restart_current_track", "sync_playback_highlight", "stop_playback", "set_playback_state", "update_play_pause_icon", "ensure_playback_timer", "on_playback_tick", "update_now_playing", "update_sidebar_now_playing_art", "update_playback_progress_ui", "ensure_remote_playback_sync", "stop_remote_playback_sync", "_remote_playback_sync_tick", "_sync_remote_playback_worker", "_fetch_remote_playback_state_async", "_apply_remote_playback_state", "queue_album_playback", "_play_album_worker", "send_playback_command", "_playback_command_worker", "send_playback_index", "_playback_index_worker")),
     (_bind_methods, library_manager, ("load_library", "_load_library_worker", "on_library_loaded", "set_loading_state", "set_loading_message", "set_status", "populate_artists_list", "build_artists_section")),
     (_bind_methods, search_manager, ("on_search_changed", "on_search_activated", "activate_search_view", "restore_search_view", "clear_search", "schedule_search", "_run_search", "_start_search", "_search_worker", "_fetch_search_results_async", "on_search_results_loaded", "set_search_status", "clear_search_results", "populate_search_playlists", "populate_search_albums", "populate_search_artists", "populate_search_tracks", "on_search_album_activated", "on_search_playlist_activated")),

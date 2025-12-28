@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from music_assistant_client import MusicAssistantClient
 from music_assistant_models.enums import AlbumType
+from music_assistant_models.media_items import Playlist
 
 from constants import DEFAULT_PAGE_SIZE
 
@@ -196,12 +197,76 @@ async def create_playlist(client: MusicAssistantClient, name: str) -> object:
     return await client.music.create_playlist(name)
 
 
+async def delete_playlist(
+    client: MusicAssistantClient, playlist_id: str | int
+) -> None:
+    await client.music.remove_playlist(playlist_id)
+
+
+async def rename_playlist(
+    client: MusicAssistantClient,
+    playlist_id: str | int,
+    provider: str,
+    new_name: str,
+) -> object:
+    if hasattr(client.music, "update_playlist"):
+        playlist = await client.music.get_playlist(str(playlist_id), provider)
+        payload = playlist.to_dict()
+        payload["name"] = new_name
+        update = Playlist.from_dict(payload)
+        return await client.music.update_playlist(playlist_id, update)
+    return await _recreate_playlist_with_tracks(
+        client, playlist_id, provider, new_name
+    )
+
+
+async def _recreate_playlist_with_tracks(
+    client: MusicAssistantClient,
+    playlist_id: str | int,
+    provider: str,
+    new_name: str,
+) -> object:
+    new_playlist = await client.music.create_playlist(new_name)
+    new_playlist_id = getattr(new_playlist, "item_id", None) or getattr(
+        new_playlist, "id", None
+    )
+    if not new_playlist_id:
+        raise RuntimeError("New playlist ID missing")
+
+    page = 0
+    track_uris: list[str] = []
+    while True:
+        page_tracks = await client.music.get_playlist_tracks(
+            str(playlist_id),
+            provider,
+            page=page,
+        )
+        if not page_tracks:
+            break
+        for track in page_tracks:
+            uri = getattr(track, "uri", None)
+            if uri:
+                track_uris.append(uri)
+        page += 1
+    for chunk in _chunked(track_uris, 200):
+        await client.music.add_playlist_tracks(new_playlist_id, chunk)
+    await client.music.remove_playlist(playlist_id)
+    return new_playlist
+
+
+def _chunked(items: list[str], chunk_size: int):
+    for index in range(0, len(items), chunk_size):
+        yield items[index : index + chunk_size]
+
+
 __all__ = [
     "fetch_albums",
     "fetch_artists",
     "fetch_playlists",
     "load_library_data",
     "create_playlist",
+    "delete_playlist",
+    "rename_playlist",
     "_serialize_album",
     "_serialize_artist",
     "_serialize_playlist",

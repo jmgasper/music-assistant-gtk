@@ -1,7 +1,7 @@
 from gi.repository import Gtk, Pango
 
 from constants import DETAIL_ART_SIZE
-from ui import track_table
+from ui import playlist_manager, track_table
 
 
 def build_playlist_detail_section(app) -> Gtk.Widget:
@@ -55,9 +55,34 @@ def build_playlist_detail_section(app) -> Gtk.Widget:
     title.add_css_class("playlist-detail-title")
     title.set_wrap(True)
     title.set_ellipsize(Pango.EllipsizeMode.END)
+    title.set_hexpand(True)
+
+    title_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+    title_row.set_hexpand(True)
+    title_row.set_halign(Gtk.Align.FILL)
+    title_row.append(title)
+
+    read_only_badge = Gtk.Label(label="Read-only")
+    read_only_badge.add_css_class("playlist-readonly-badge")
+    read_only_badge.set_visible(False)
+    title_row.append(read_only_badge)
+
+    play_button = Gtk.Button()
+    play_button.add_css_class("suggested-action")
+    play_button.add_css_class("detail-play")
+    play_button.set_halign(Gtk.Align.START)
+    play_button.set_tooltip_text("Play")
+    play_icon = Gtk.Image.new_from_icon_name("media-playback-start-symbolic")
+    play_icon.set_pixel_size(18)
+    play_button.set_child(play_icon)
+    play_button.set_sensitive(False)
+    play_button.set_visible(False)
+    play_button.connect("clicked", app.on_playlist_play_clicked)
+    title_row.append(play_button)
 
     info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-    info.append(title)
+    info.append(title_row)
+    info.append(playlist_manager.build_playlist_action_row(app))
 
     header.append(art)
     header.append(info)
@@ -100,4 +125,6 @@ def build_playlist_detail_section(app) -> Gtk.Widget:
     app.playlist_detail_art = art
     app.playlist_detail_title = title
     app.playlist_detail_status_label = status
+    app.playlist_detail_play_button = play_button
+    app.playlist_detail_read_only_badge = read_only_badge
     return overlay

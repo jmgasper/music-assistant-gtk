@@ -251,7 +251,19 @@ def update_settings_entries(app) -> None:
         app.settings_alsa_device_entry.set_text(app.output_alsa_device or "")
 
 
-def connect_to_server(app, server_url: str, auth_token: str, persist: bool = False) -> None:
+def connect_to_server(
+    app,
+    server_url: str,
+    auth_token: str,
+    persist: bool = False,
+    on_success=None,
+    on_error=None,
+) -> None:
+    app._pending_connection_callbacks = {
+        "on_success": on_success,
+        "on_error": on_error,
+    }
+
     def on_server_change() -> None:
         app.sendspin_manager.stop()
         app.audio_pipeline.destroy_pipeline()

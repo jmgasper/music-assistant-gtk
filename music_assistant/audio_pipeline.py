@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import os
 from typing import Callable
 
@@ -14,6 +15,31 @@ try:
     from gi.repository import Gst
 except (ImportError, ValueError):
     Gst = None
+
+
+def _load_media3_equalizer_class() -> object | None:
+    try:
+        from jnius import autoclass
+    except Exception:
+        return None
+    try:
+        return autoclass("android.media.audiofx.Equalizer")
+    except Exception:
+        return None
+
+
+def _read_media3_audio_session_id() -> int | None:
+    for key in ("MEDIA3_AUDIO_SESSION_ID", "MA_MEDIA3_AUDIO_SESSION_ID"):
+        value = os.getenv(key)
+        if not value:
+            continue
+        try:
+            session_id = int(value)
+        except (TypeError, ValueError):
+            continue
+        if session_id > 0:
+            return session_id
+    return None
 
 
 class AudioPipeline:
@@ -521,3 +547,195 @@ class AudioPipeline:
                 config.copy() for config in self.eq_band_configs
             ],
         }
+
+
+class Media3EqualizerManager:
+    _MIN_GAIN_DB = -24.0
+    _MAX_GAIN_DB = 12.0
+    _MIN_RELATIVE_WIDTH = 0.05
+
+    def __init__(self, *, audio_session_id: int | None = None) -> None:
+        self._logger = logging.getLogger(__name__)
+        self._equalizer_class = _load_media3_equalizer_class()
+        self._equalizer = None
+        self._audio_session_id = None
+        self.eq_enabled = False
+        self.eq_num_bands = 10
+        self.eq_band_configs: list[dict] = []
+        if audio_session_id is None:
+            audio_session_id = _read_media3_audio_session_id()
+        if audio_session_id:
+            self.attach_audio_session(audio_session_id)
+
+    def is_available(self) -> bool:
+        return self._equalizer_class is not None
+
+    def attach_audio_session(self, audio_session_id: int) -> None:
+        if not self._equalizer_class:
+            return
+        try:
+            audio_session_id = int(audio_session_id)
+        except (TypeError, ValueError):
+            self._logger.warning(
+                "Invalid Media3 audio session id: %s", audio_session_id
+            )
+            return
+        if audio_session_id <= 0:
+            self._logger.warning(
+                "Media3 audio session id out of range: %s", audio_session_id
+            )
+            return
+        if (
+            self._equalizer is not None
+            and self._audio_session_id == audio_session_id
+        ):
+            return
+        self._release_equalizer()
+        try:
+            equalizer = self._equalizer_class(0, audio_session_id)
+            equalizer.setEnabled(self.eq_enabled)
+            self._equalizer = equalizer
+            self._audio_session_id = audio_session_id
+            self._apply_eq_config()
+        except Exception:
+            self._logger.warning(
+                "Failed to attach Media3 equalizer.", exc_info=True
+            )
+
+    def release(self) -> None:
+        self._release_equalizer()
+
+    def configure_eq_bands(
+        self,
+        num_bands: int,
+        band_configs: list[dict],
+    ) -> None:
+        try:
+            num_bands = int(num_bands)
+        except (TypeError, ValueError):
+            self._logger.warning("Invalid EQ band count: %s", num_bands)
+            return
+        if num_bands < 1 or num_bands > 64:
+            self._logger.warning("EQ band count out of range: %s", num_bands)
+            num_bands = max(1, min(64, num_bands))
+        validated_configs: list[dict] = []
+        for config in band_configs or []:
+            if len(validated_configs) >= num_bands:
+                break
+            if not isinstance(config, dict):
+                self._logger.warning(
+                    "Invalid EQ band configuration: %s", config
+                )
+                continue
+            try:
+                freq = float(config.get("freq", 0.0))
+                bandwidth = float(config.get("bandwidth", 0.0))
+                gain = float(config.get("gain", 0.0))
+            except (TypeError, ValueError):
+                self._logger.warning(
+                    "Invalid EQ band configuration: %s", config
+                )
+                continue
+            if freq <= 0 or bandwidth <= 0:
+                self._logger.warning(
+                    "Invalid EQ band configuration: %s", config
+                )
+                continue
+            if gain < self._MIN_GAIN_DB or gain > self._MAX_GAIN_DB:
+                self._logger.warning(
+                    "EQ band gain out of range: %s", gain
+                )
+                gain = max(self._MIN_GAIN_DB, min(self._MAX_GAIN_DB, gain))
+            validated_configs.append(
+                {"freq": freq, "bandwidth": bandwidth, "gain": gain}
+            )
+        self.eq_num_bands = num_bands
+        self.eq_band_configs = validated_configs
+        self._apply_eq_config()
+
+    def set_eq_enabled(self, enabled: bool) -> None:
+        self.eq_enabled = bool(enabled)
+        self._apply_eq_config()
+
+    def get_eq_state(self) -> dict:
+        return {
+            "enabled": self.eq_enabled,
+            "num_bands": self.eq_num_bands,
+            "band_configs": [
+                config.copy() for config in self.eq_band_configs
+            ],
+        }
+
+    def _apply_eq_config(self) -> None:
+        equalizer = self._equalizer
+        if not equalizer:
+            return
+        try:
+            equalizer.setEnabled(self.eq_enabled)
+        except Exception:
+            self._logger.warning(
+                "Failed to update Media3 equalizer state.", exc_info=True
+            )
+            return
+        band_count = int(equalizer.getNumberOfBands())
+        if not self.eq_enabled:
+            for index in range(band_count):
+                try:
+                    equalizer.setBandLevel(index, 0)
+                except Exception:
+                    self._logger.debug(
+                        "Failed to reset Media3 band %s.", index, exc_info=True
+                    )
+            return
+        try:
+            level_range = equalizer.getBandLevelRange()
+            min_level = int(level_range[0])
+            max_level = int(level_range[1])
+        except Exception:
+            self._logger.warning(
+                "Failed to read Media3 band level range.", exc_info=True
+            )
+            return
+        for index in range(band_count):
+            try:
+                center_hz = float(equalizer.getCenterFreq(index)) / 1000.0
+                gain_db = self._calculate_gain(center_hz)
+                level_mb = int(round(gain_db * 100.0))
+                level_mb = max(min_level, min(max_level, level_mb))
+                equalizer.setBandLevel(index, level_mb)
+            except Exception:
+                self._logger.debug(
+                    "Failed to apply Media3 band %s.", index, exc_info=True
+                )
+
+    def _calculate_gain(self, freq: float) -> float:
+        if freq <= 0:
+            return 0.0
+        total_gain = 0.0
+        for band in self.eq_band_configs[: self.eq_num_bands]:
+            band_freq = band.get("freq", 0.0)
+            if band_freq <= 0:
+                continue
+            bandwidth = band.get("bandwidth", 0.0) or band_freq * 0.5
+            if bandwidth <= 0:
+                bandwidth = band_freq * 0.5
+            relative_width = max(
+                self._MIN_RELATIVE_WIDTH, bandwidth / band_freq
+            )
+            distance = abs(math.log(freq / band_freq))
+            weight = math.exp(-0.5 * (distance / relative_width) ** 2)
+            total_gain += float(band.get("gain", 0.0)) * weight
+        return total_gain
+
+    def _release_equalizer(self) -> None:
+        if not self._equalizer:
+            self._audio_session_id = None
+            return
+        try:
+            self._equalizer.release()
+        except Exception:
+            self._logger.debug(
+                "Failed to release Media3 equalizer.", exc_info=True
+            )
+        self._equalizer = None
+        self._audio_session_id = None

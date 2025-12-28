@@ -29,6 +29,12 @@ def on_track_action_clicked(app, button: Gtk.Button, menu_button, action: str) -
         from ui import playlist_manager
 
         playlist_manager.show_add_to_playlist_dialog(app, track)
+        return
+    if action == "Add to new playlist":
+        from ui import playlist_manager
+
+        playlist_manager.show_create_playlist_dialog(app, track)
+        return
 
 
 def on_track_selection_changed(app, selection, _position: int, _n_items: int) -> None:

@@ -320,5 +320,8 @@ def on_track_actions_bind(
     app, _factory: Gtk.SignalListItemFactory, list_item: Gtk.ListItem
 ) -> None:
     item = list_item.get_item()
+    remove_enabled = getattr(app, "playlist_detail_is_editable", True)
     for button in getattr(list_item, "action_buttons", []):
         button.track_item = item
+        if button.get_label() == "Remove from this playlist":
+            button.set_sensitive(remove_enabled)
